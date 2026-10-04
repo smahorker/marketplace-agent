@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Theme: deep teal brand on warm stone neutrals, amber for "needs attention". */
+@theme {
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  @apply bg-stone-100 text-stone-900;
+}
+
+/* Tailwind v4: custom classes are declared with @utility and don't @apply one another. */
+@utility card {
+  @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+}
+@utility input {
+  @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm shadow-xs outline-none transition placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100;
+}
+@utility label {
+  @apply text-xs font-medium text-stone-600;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 bg-brand-700 text-white shadow-sm hover:bg-brand-800;
+}
+@utility btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 border border-stone-300 bg-white text-stone-700 hover:bg-stone-50;
+}
+@utility btn-sm {
+  @apply inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-50;
+}
+@utility pill {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+}

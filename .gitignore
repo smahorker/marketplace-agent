@@ -1,0 +1,26 @@
+# secrets and local service links
+.env*
+.neon
+
+# dependencies and build output
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+
+# agent skills installed locally (reinstall with `npx skills add ...`)
+.claude/
+.agents/
+skills-lock.json
+
+# screenshots, test photos, logs
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.log
+
+# local docs (not part of the source)
+PLAN.md
+CLAUDE.md
+AGENTS.md
