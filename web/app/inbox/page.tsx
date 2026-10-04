@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -19,7 +19,7 @@ type Detail = { thread: { id: number; buyer_name: string; platform: string; list
 
 export default function Inbox() {
   const [selected, setSelected] = useState<number | null>(null);
-  const list = usePolling<{ threads: Thread[]; syncing: boolean }>("/threads", (d) => d.syncing);
+  const list = usePolling<{ threads: Thread[]; syncing: boolean }>("/threads", (d) => d.syncing, 5000); // new Craigslist emails show up without a reload
   const [refreshing, setRefreshing] = useState(false);
   const syncing = refreshing || !!list.data?.syncing;
 
@@ -45,12 +45,13 @@ export default function Inbox() {
           </button>
         }
       />
-      <div className="grid min-h-0 flex-1 grid-cols-[360px_1fr] gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] gap-4 xl:grid-cols-[360px_1fr]">
         <section className="card flex min-h-0 flex-col overflow-hidden">
           <div className="border-b border-stone-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-stone-500">
             Conversations {list.data ? `· ${list.data.threads.length}` : ""}
           </div>
           {list.error && <p className="p-4 text-sm text-red-600">{list.error}</p>}
+          {list.data && !list.data.threads.length ? <Empty text="No conversations yet." /> : (
           <ul className="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto">
             {list.data?.threads.map((t) => (
               <li key={t.id}>
@@ -77,7 +78,7 @@ export default function Inbox() {
               </li>
             ))}
           </ul>
-          {list.data && !list.data.threads.length && <Empty text="No conversations yet." />}
+          )}
         </section>
         <section className="card flex min-h-0 flex-col overflow-hidden">
           {selected ? <ThreadView key={selected} id={selected} onChange={list.reload} /> : <Empty text="Select a conversation to read and reply." />}
@@ -99,7 +100,7 @@ function Empty({ text }: { text: string }) {
 // The conversation pane is an assistant-ui thread on an external store: our database is
 // the source of truth. Seller (us) = "user" role, buyer = "assistant" role.
 function ThreadView({ id, onChange }: { id: number; onChange: () => void }) {
-  const d = usePolling<Detail>(`/threads/${id}`, (x) => x.messages.some((m) => m.status === "sending"));
+  const d = usePolling<Detail>(`/threads/${id}`, (x) => x.messages.some((m) => m.status === "sending"), 5000);
   const [error, setError] = useState<string | null>(null);
   const messages = d.data?.messages.filter((m) => m.status !== "draft") ?? [];
   const draft = d.data?.messages.find((m) => m.status === "draft");
@@ -128,9 +129,14 @@ function ThreadView({ id, onChange }: { id: number; onChange: () => void }) {
     },
   });
 
-  // prefill the composer with the AI draft; the seller edits it before sending
+  // Prefill the composer with the AI draft. A newer draft (a new buyer message arrived) only
+  // replaces the text if the seller hasn't started editing — never overwrite what they typed.
+  const lastDraft = useRef<string>("");
   useEffect(() => {
-    if (draft) runtime.thread.composer.setText(draft.body);
+    if (!draft) return;
+    const current = runtime.thread.composer.getState().text;
+    if (!current.trim() || current === lastDraft.current) runtime.thread.composer.setText(draft.body);
+    lastDraft.current = draft.body;
   }, [draft?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!d.data) return <Empty text={d.error ?? "Loading…"} />;

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS listings (
   account_id integer NOT NULL REFERENCES accounts(id),
   title text NOT NULL,
   fields jsonb NOT NULL, -- full per-site form values (MercariListing / CraigslistListing)
-  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'posting', 'live', 'failed')),
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'posting', 'live', 'failed', 'delisting', 'removed')),
   url text,
   error text,
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS jobs (
   id serial PRIMARY KEY,
   account_id integer NOT NULL REFERENCES accounts(id),
-  kind text NOT NULL CHECK (kind IN ('post_listing', 'sync_inbox', 'send_reply')),
+  kind text NOT NULL CHECK (kind IN ('post_listing', 'sync_inbox', 'send_reply', 'delist_listing')),
   payload jsonb NOT NULL DEFAULT '{}',
   status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'done', 'failed')),
   error text,

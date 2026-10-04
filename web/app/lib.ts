@@ -11,10 +11,12 @@ export async function api<T = any>(path: string, init?: RequestInit): Promise<T>
 export const post = (path: string, body?: unknown) =>
   api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
-// Loads `path`, and re-loads every 2 s while `busy(data)` is true (UI refresh, not marketplace polling).
-export function usePolling<T>(path: string | null, busy: (d: T) => boolean) {
+// Loads `path`, re-loads every 2 s while `busy(data)` is true, and — if `idleMs` is set — every
+// `idleMs` otherwise. This only re-reads our own database (UI refresh, not marketplace polling).
+export function usePolling<T>(path: string | null, busy: (d: T) => boolean, idleMs?: number) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0); // bumps after every attempt so a failed load still schedules the next one
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const load = useCallback(async () => {
@@ -25,16 +27,19 @@ export function usePolling<T>(path: string | null, busy: (d: T) => boolean) {
     } catch (e: any) {
       setError(e.message);
     }
+    setLoads((n) => n + 1);
   }, [path]);
   useEffect(() => {
     setData(null);
     load();
   }, [load]);
   useEffect(() => {
-    if (!data || !busyRef.current(data)) return;
-    const t = setTimeout(load, 2000);
+    if (!loads) return;
+    const isBusy = data ? busyRef.current(data) : false;
+    if (!isBusy && !idleMs) return;
+    const t = setTimeout(load, isBusy ? 2000 : idleMs);
     return () => clearTimeout(t);
-  }, [data, load]);
+  }, [loads, data, load, idleMs]);
   return { data, error, reload: load };
 }
 

@@ -200,6 +200,28 @@ export async function sendReply(itemId: string, guestId: string, body: string): 
   return runInBrowser({ profile: PROFILE, code: SEND_REPLY, params: { itemId, guestId, body } });
 }
 
+// Deletes the item from its edit page. Mercari's Delete has NO confirmation step — the
+// click is final. An item that's already gone (deleted, or sold so it can't be edited)
+// counts as removed. Verified afterwards against the active-listings page.
+const DELIST = `${OPEN}
+await open("https://www.mercari.com/sell/edit/" + params.itemId + "/");
+const del = page.locator('[data-testid="DeleteButton"]');
+if (!(await del.count())) return { removed: true, already: true, url: page.url() };
+await del.scrollIntoViewIfNeeded();
+await del.click();
+await page.waitForTimeout(3000);
+await open("https://www.mercari.com/mypage/listings/active/");
+const still = await page.locator('a[href*="/item/' + params.itemId + '/"]').count();
+if (still) throw new Error("Item still listed on Mercari after Delete");
+return { removed: true };
+`;
+
+export async function delistListing(url: string): Promise<{ removed: boolean; already?: boolean }> {
+  const itemId = /\/item\/(m\d+)/.exec(url)?.[1];
+  if (!itemId) throw new Error("No Mercari item id in " + url);
+  return runInBrowser({ profile: PROFILE, code: DELIST, params: { itemId } });
+}
+
 export async function postListing(
   listing: MercariListing,
   photos: Uint8Array[],

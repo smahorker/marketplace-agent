@@ -137,6 +137,33 @@ const url = (await link.count()) ? await link.getAttribute("href") : page.url();
 return { filled, url, page: (await page.locator("body").innerText()).slice(0, 400) };
 `;
 
+// Finds the posting in the account's postings list by its id, opens its manage page and
+// deletes it. A posting that is already gone (deleted or expired) counts as removed.
+const DELIST = `
+await page.goto("https://accounts.craigslist.org/login/home?show_tab=postings&filter_active=all", { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(1500);
+if (page.url().includes("/login") && !page.url().includes("/login/home")) throw new Error("NEEDS_RECONNECT");
+const row = page.locator("tr", { hasText: params.postingId });
+if (!(await row.count())) return { removed: true, already: true };
+const status = (await row.first().innerText()).trim().split(/\\s/)[0].toLowerCase();
+if (status !== "active") return { removed: true, already: true, status };
+const manage = await row.first().locator('form[action*="/manage/"]').first().getAttribute("action");
+await page.goto(manage, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(1500);
+await page.locator('input[type="submit"][value="Delete this Posting"], button:has-text("Delete this Posting")').first().click();
+await page.waitForLoadState("domcontentloaded");
+await page.waitForTimeout(1500);
+const body = await page.locator("body").innerText();
+if (!/has been deleted/i.test(body)) throw new Error("Craigslist did not confirm the deletion");
+return { removed: true };
+`;
+
+export async function delistListing(url: string): Promise<{ removed: boolean; already?: boolean }> {
+  const postingId = /(\d{8,})\.html/.exec(url)?.[1];
+  if (!postingId) throw new Error("No Craigslist posting id in " + url);
+  return runInBrowser({ profile: PROFILE, code: DELIST, params: { postingId } });
+}
+
 export async function postListing(
   listing: CraigslistListing,
   photos: Uint8Array[],

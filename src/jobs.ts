@@ -5,7 +5,7 @@ import * as mercari from "./platforms/mercari.ts";
 import * as craigslist from "./platforms/craigslist.ts";
 import { draftReplyFor } from "./mastra/index.ts";
 
-type Job = { id: number; account_id: number; kind: "post_listing" | "sync_inbox" | "send_reply"; payload: any };
+type Job = { id: number; account_id: number; kind: "post_listing" | "sync_inbox" | "send_reply" | "delist_listing"; payload: any };
 
 export async function enqueue(accountId: number, kind: Job["kind"], payload: object = {}) {
   if (kind === "sync_inbox") {
@@ -59,12 +59,21 @@ export async function runAccountQueue(accountId: number) {
 async function markJobTargetFailed(job: Job, msg: string) {
   if (job.kind === "post_listing") await q("UPDATE listings SET status='failed', error=$2, updated_at=now() WHERE id=$1", [job.payload.listingId, msg]);
   if (job.kind === "send_reply") await q("UPDATE messages SET status='failed', error=$2 WHERE id=$1", [job.payload.messageId, msg]);
+  // a failed removal leaves the listing live (it still is), with the reason
+  if (job.kind === "delist_listing") await q("UPDATE listings SET status='live', error=$2, updated_at=now() WHERE id=$1", [job.payload.listingId, `Could not remove: ${msg}`]);
 }
 
 async function runJob(job: Job) {
   if (job.kind === "post_listing") return postListingJob(job.payload.listingId);
   if (job.kind === "sync_inbox") return syncMercari(job.account_id);
   if (job.kind === "send_reply") return sendMercariReply(job.payload.messageId);
+  if (job.kind === "delist_listing") return delistListingJob(job.payload.listingId);
+}
+
+async function delistListingJob(listingId: number) {
+  const [l] = await q("SELECT l.url, a.platform FROM listings l JOIN accounts a ON a.id=l.account_id WHERE l.id=$1", [listingId]);
+  if (l.url) await (l.platform === "mercari" ? mercari.delistListing(l.url) : craigslist.delistListing(l.url));
+  await q("UPDATE listings SET status='removed', error=NULL, updated_at=now() WHERE id=$1", [listingId]);
 }
 
 async function postListingJob(listingId: number) {

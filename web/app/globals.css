@@ -39,5 +39,5 @@ body {
   @apply inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-50;
 }
 @utility pill {
-  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+  @apply inline-flex w-fit items-center justify-center gap-1 rounded-full px-2 py-0.5 text-center text-[11px] font-semibold uppercase tracking-wide;
 }

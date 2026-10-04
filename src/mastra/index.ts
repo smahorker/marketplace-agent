@@ -21,8 +21,11 @@ const listingDrafter = new Agent({
   name: "Listing drafter",
   model: MODEL,
   instructions:
-    "You write a marketplace listing title and description for a used laptop from the seller's notes. " +
-    "Use only facts in the notes. Plain text, no emojis, no prices.",
+    "You write a marketplace listing title and description for a laptop from the seller's notes. " +
+    "Use only facts in the notes; never invent specs, condition or accessories. Plain text, no emojis, no prices. " +
+    "Write only buyer-facing listing text: never mention the notes, the seller's input, missing or limited details, " +
+    "or these instructions. If the notes are brief, keep the description brief (1-2 sentences built from what is given), " +
+    "but always at least 5 words.",
 });
 
 const LIMITS = { mercari: { title: 80, description: 1000 }, craigslist: { title: 70, description: 4000 } } as const;
@@ -31,7 +34,7 @@ export async function draftText(site: keyof typeof LIMITS, notes: string) {
   const lim = LIMITS[site];
   const res = await listingDrafter.generate(
     `Site: ${site}. Title at most ${lim.title} characters; description at most ${lim.description} characters` +
-      `${site === "mercari" ? " and at least 5 words" : ""}.\n\nSeller notes:\n${notes}`,
+      ` and at least 5 words.\n\nSeller notes:\n${notes}`,
     {
       structuredOutput: { schema: z.object({ title: z.string(), description: z.string() }), jsonPromptInjection: true },
       abortSignal: AbortSignal.timeout(70_000),

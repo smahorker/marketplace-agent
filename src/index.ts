@@ -92,6 +92,17 @@ app.post("/products/:id/list", async (c) => {
   return c.json({ listings: rows });
 });
 
+// Sold (anywhere): remove every live listing of this product from every marketplace.
+app.post("/products/:id/sold", async (c) => {
+  const rows = await q(
+    "UPDATE listings SET status='delisting', error=NULL, updated_at=now() WHERE product_id=$1 AND status='live' RETURNING id, account_id",
+    [Number(c.req.param("id"))],
+  );
+  for (const l of rows) await enqueue(l.account_id, "delist_listing", { listingId: l.id });
+  kick(rows.map((l) => l.account_id));
+  return c.json({ listings: rows });
+});
+
 app.get("/products", async (c) => {
   await sweepAndKick();
   const products = await q(
